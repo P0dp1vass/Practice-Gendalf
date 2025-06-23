@@ -11,7 +11,7 @@ RUN python -m nltk.downloader punkt
 
 # Копирование файлов
 COPY api /app/api
-COPY api/client_app.py.py /app/client_app.py.py
+COPY api/client_app.py /app/client_app.py
 
 
 # Запуск API
