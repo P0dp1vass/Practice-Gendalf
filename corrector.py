@@ -69,6 +69,19 @@ class TextCorrector:
             "маркетплейс"
         }
 
+        self.device = torch.device('cpu')
+        (
+            self.silero_model,
+            self.example_texts,
+            self.languages,
+            self.punct,
+            self.apply_te
+        ) = torch.hub.load(
+            repo_or_dir='snakers4/silero-models',
+            model='silero_te',
+            trust_repo=True
+        )
+
     def clean_word(self, word: str) -> str:
         return re.sub(r'[^\w\s]', '', word).lower()
 
@@ -113,13 +126,17 @@ class TextCorrector:
         corrections = {}
         corrected_tokens = []
         for token in tokens:
-            if token.strip() == '' or not re.match(r'\w+', token):
+            try:
+                if token.strip() == '' or not re.match(r'\w+', token):
+                    corrected_tokens.append(token)
+                else:
+                    corrected, original = self.correct_word(token, correct_set)
+                    corrected_tokens.append(corrected)
+                    if original:
+                        corrections[original] = corrected
+            except Exception as e:
+                print(f"Ошибка в correct_terms_preserve_structure при токене: '{token}'. Ошибка: {e}")
                 corrected_tokens.append(token)
-            else:
-                corrected, original = self.correct_word(token, correct_set)
-                corrected_tokens.append(corrected)
-                if original:
-                    corrections[original] = corrected
         corrected_text = ''.join(corrected_tokens)
         return corrected_text, corrections
 
@@ -154,28 +171,52 @@ class TextCorrector:
         return precision
 
     def neural_spell_correct_long(self, text: str) -> str:
+        if not text or not text.strip():
+            return text
         sentences = sent_tokenize(text, language='russian')
+        if not sentences:
+            return text
         corrected_sentences = []
         for sent in sentences:
-            encoded = self.tokenizer(
-                "Spell correct: " + sent,
-                padding="longest",
-                max_length=256,
-                truncation=True,
-                return_tensors="pt"
-            )
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    input_ids=encoded.input_ids,
-                    attention_mask=encoded.attention_mask,
-                    max_length=256
+            if not sent.strip():
+                continue
+            try:
+                encoded = self.tokenizer(
+                    "Spell correct: " + sent,
+                    padding="longest",
+                    max_length=256,
+                    truncation=True,
+                    return_tensors="pt"
                 )
-            corrected = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        input_ids=encoded.input_ids,
+                        attention_mask=encoded.attention_mask,
+                        max_length=256
+                    )
+                if len(outputs) == 0 or outputs[0].size(0) == 0:
+                    corrected = sent
+                else:
+                    corrected = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            except Exception as e:
+                print(f"Ошибка в neural_spell_correct_long при обработке предложения: '{sent}'. Ошибка: {e}")
+                corrected = sent
             corrected_sentences.append(corrected)
         return " ".join(corrected_sentences)
 
-    def correct(self, text: str) -> Tuple[str, Dict[str, str]]:
-        neural_corrected = self.neural_spell_correct_long(text)
-        cleaned_text, corrections = self.correct_terms_preserve_structure(neural_corrected, self.correct_words)
-        return cleaned_text, corrections
+    def enhance_text(self, text: str) -> str:
+        if not text or not text.strip():
+            return text
+        try:
+            return self.apply_te(text, lan='ru')
+        except Exception as e:
+            print(f"Ошибка в enhance_text при обработке текста: '{text}'. Ошибка: {e}")
+            return text
 
+    def correct(self, text: str) -> Tuple[str, Dict[str, str]]:
+        if not text or not text.strip():
+            return text, {}
+        neural_corrected = self.neural_spell_correct_long(text)
+        enhanced_text = self.enhance_text(neural_corrected)
+        cleaned_text, corrections = self.correct_terms_preserve_structure(enhanced_text, self.correct_words)
+        return cleaned_text, corrections
