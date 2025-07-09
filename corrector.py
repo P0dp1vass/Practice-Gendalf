@@ -7,7 +7,8 @@ import torch
 import Levenshtein
 import nltk
 
-nltk.download('punkt', quiet=True)
+nltk.download('punkt', quiet=True, download_dir='/root/nltk_data')
+nltk.download('punkt_tab', quiet=True, download_dir='/root/nltk_data')
 from nltk.tokenize import sent_tokenize
 
 morph = MorphVocab()
