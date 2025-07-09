@@ -99,7 +99,7 @@ def process_correction(task_id: str, text: str):
     try:
         prompt = build_prompt(text)
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0
