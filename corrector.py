@@ -1,5 +1,9 @@
 import re
+import os
+import json
+import logging
 import difflib
+from datetime import datetime
 from typing import Tuple, Dict, Optional
 from natasha import MorphVocab
 from transformers import AutoModelForSeq2SeqLM, T5TokenizerFast
@@ -12,6 +16,42 @@ nltk.download('punkt_tab', quiet=True, download_dir='/root/nltk_data')
 from nltk.tokenize import sent_tokenize
 
 morph = MorphVocab()
+
+# Настройка JSON логгирования
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "corrector",
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+        
+        # Добавляем дополнительные поля если есть
+        if hasattr(record, 'task_id'):
+            log_entry["task_id"] = record.task_id
+        if hasattr(record, 'text_length'):
+            log_entry["text_length"] = record.text_length
+        if hasattr(record, 'processing_time'):
+            log_entry["processing_time"] = record.processing_time
+        if hasattr(record, 'corrections_count'):
+            log_entry["corrections_count"] = record.corrections_count
+        if hasattr(record, 'method'):
+            log_entry["method"] = record.method
+        if hasattr(record, 'device'):
+            log_entry["device"] = record.device
+        
+        return json.dumps(log_entry, ensure_ascii=False)
+
+# Настройка логгера
+logger = logging.getLogger("corrector")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logger.addHandler(handler)
 
 class TextCorrector:
     def __init__(self):
@@ -71,12 +111,17 @@ class TextCorrector:
         }
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print(f"Используется device: {self.device}")
+        logger.info("Инициализация TextCorrector", extra={
+            'device': str(self.device),
+            'model_name': self.MODEL_NAME
+        })
         
         # Перемещаем T5 модель на device
         self.model = self.model.to(self.device)
+        logger.info("T5 модель перемещена на device", extra={'device': str(self.device)})
         
         # Загружаем Silero модель
+        logger.info("Загрузка Silero модели")
         (
             self.silero_model,
             self.example_texts,
@@ -91,6 +136,7 @@ class TextCorrector:
         
         # Перемещаем Silero модель на device
         # self.silero_model = self.silero_model.to(self.device)
+        logger.info("Silero модель успешно загружена")
 
     def clean_word(self, word: str) -> str:
         return re.sub(r'[^\w\s]', '', word).lower()
@@ -218,24 +264,109 @@ class TextCorrector:
         if not text or not text.strip():
             return text
         
+        import time
+        start_time = time.time()
+        
+        logger.info("Начало обработки Silero Text Enhancement", extra={
+            'method': 'enhance_text',
+            'text_length': len(text)
+        })
+        
         # Убираем всю пунктуацию и переводим в нижний регистр
         import re
         cleaned_text = re.sub(r'[^\w\s]', ' ', text).lower()
         # Убираем лишние пробелы
         cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
         
+        logger.info("Текст очищен для Silero TE", extra={
+            'method': 'enhance_text',
+            'original_length': len(text),
+            'cleaned_length': len(cleaned_text)
+        })
+        
         try:
             # Применяем Silero Text Enhancement к очищенному тексту
             enhanced = self.apply_te(cleaned_text, lan="ru")
+            
+            processing_time = time.time() - start_time
+            
+            logger.info("Silero Text Enhancement успешно завершен", extra={
+                'method': 'enhance_text',
+                'processing_time': processing_time,
+                'enhanced_length': len(enhanced)
+            })
+            
             return enhanced
         except Exception as e:
-            print(f"Ошибка в enhance_text: {e}. Возвращаем исходный текст")
+            processing_time = time.time() - start_time
+            
+            logger.error("Ошибка в enhance_text", extra={
+                'method': 'enhance_text',
+                'error': str(e),
+                'processing_time': processing_time
+            })
+            
             return text
 
     def correct(self, text: str) -> Tuple[str, Dict[str, str]]:
         if not text or not text.strip():
             return text, {}
+        
+        import time
+        start_time = time.time()
+        
+        logger.info("Начало полной коррекции текста", extra={
+            'method': 'correct',
+            'text_length': len(text)
+        })
+        
+        # Нейронная коррекция орфографии
+        neural_start = time.time()
         neural_corrected = self.neural_spell_correct_long(text)
+        neural_time = time.time() - neural_start
+        
+        logger.info("Нейронная коррекция завершена", extra={
+            'method': 'correct',
+            'step': 'neural_spell_correct',
+            'processing_time': neural_time,
+            'corrected_length': len(neural_corrected)
+        })
+        
+        # Улучшение текста через Silero TE
+        enhance_start = time.time()
         enhanced_text = self.enhance_text(neural_corrected)
+        enhance_time = time.time() - enhance_start
+        
+        logger.info("Text Enhancement завершен", extra={
+            'method': 'correct',
+            'step': 'enhance_text',
+            'processing_time': enhance_time,
+            'enhanced_length': len(enhanced_text)
+        })
+        
+        # Коррекция терминов
+        terms_start = time.time()
         cleaned_text, corrections = self.correct_terms_preserve_structure(enhanced_text, self.correct_words)
+        terms_time = time.time() - terms_start
+        
+        total_time = time.time() - start_time
+        
+        logger.info("Коррекция терминов завершена", extra={
+            'method': 'correct',
+            'step': 'correct_terms',
+            'processing_time': terms_time,
+            'corrections_count': len(corrections),
+            'final_length': len(cleaned_text)
+        })
+        
+        logger.info("Полная коррекция текста завершена", extra={
+            'method': 'correct',
+            'total_processing_time': total_time,
+            'neural_time': neural_time,
+            'enhance_time': enhance_time,
+            'terms_time': terms_time,
+            'corrections_count': len(corrections),
+            'final_length': len(cleaned_text)
+        })
+        
         return cleaned_text, corrections
