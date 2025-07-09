@@ -70,7 +70,13 @@ class TextCorrector:
             "маркетплейс"
         }
 
-        self.device = torch.device('cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Используется device: {self.device}")
+        
+        # Перемещаем T5 модель на device
+        self.model = self.model.to(self.device)
+        
+        # Загружаем Silero модель
         (
             self.silero_model,
             self.example_texts,
@@ -82,6 +88,9 @@ class TextCorrector:
             model='silero_te',
             trust_repo=True
         )
+        
+        # Перемещаем Silero модель на device
+        self.silero_model = self.silero_model.to(self.device)
 
     def clean_word(self, word: str) -> str:
         return re.sub(r'[^\w\s]', '', word).lower()
@@ -191,8 +200,8 @@ class TextCorrector:
                 )
                 with torch.no_grad():
                     outputs = self.model.generate(
-                        input_ids=encoded.input_ids,
-                        attention_mask=encoded.attention_mask,
+                        input_ids=encoded.input_ids.to(self.device),
+                        attention_mask=encoded.attention_mask.to(self.device),
                         max_length=256
                     )
                 if len(outputs) == 0 or outputs[0].size(0) == 0:

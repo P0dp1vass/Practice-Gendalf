@@ -4,13 +4,14 @@ import gradio as gr
 
 print('OpenAI')
 API_URL = "http://localhost:8000"
+timeout = 120
 
 def correct_text(text):
     response = requests.post(f"{API_URL}/submit", json={"text": text})
     task_id = response.json().get("task_id")
     if not task_id:
         return "Ошибка при отправке задачи"
-    for _ in range(30):
+    for _ in range(timeout):
         response = requests.get(f"{API_URL}/result/{task_id}")
         status = response.json().get("status")
         if status == "done":
