@@ -53,6 +53,7 @@ docker-compose up --build
 | `API_PORT` | Порт для API | 8081 |
 | `LOCAL_API_URL` | URL локального API | http://transcription-corrector:8081 |
 | `OPENAI_API_URL` | URL OpenAI API | http://transcription-corrector-openai:8081 |
+| `USE_SILERO_TE` | Включение/отключение Silero Text Enhancement | true |
 
 ## Локальная разработка
 
@@ -107,3 +108,13 @@ export OPENAI_API_URL=http://localhost:8082
 - `/root/.cache/huggingface` - для Hugging Face моделей
 - `/root/.cache/torch` - для PyTorch Hub моделей
 - `/root/nltk_data` - для NLTK данных
+
+## Обработка проблемных текстов
+
+Silero Text Enhancement может работать нестабильно с неструктурированными текстами, содержащими:
+- Временные метки (например, `[0:00:30]`, `[0,01,13]`)
+- Метки спикеров (например, `Спикер No1`)
+- Артефакты транскрипции
+- Большое количество специальных символов
+
+Для таких случаев система автоматически определяет проблемные тексты и пропускает этап Text Enhancement, или вы можете полностью отключить его через переменную окружения `USE_SILERO_TE=false`.

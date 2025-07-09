@@ -217,11 +217,49 @@ class TextCorrector:
     def enhance_text(self, text: str) -> str:
         if not text or not text.strip():
             return text
+        
+        # Регулярка на поиск всех числовых значений (временные метки, телефоны, индексы и т.д.)
+        import re
+        number_pattern = r"[+0-9]{0,}[\(\[\:,]{0,}[-0-9]{1,}[\)\]\:,]{0,}[0-9]{0,}"
+        
+        # Отлавливаем все числа в порядке нахождения
+        numbers = re.findall(number_pattern, text)
+        
+        # Убираем числа и заменяем на placeholder
+        sub_text = re.sub(number_pattern, "[]", text)
+        
         try:
-            return self.apply_te(text, lan='ru')
+            # Применяем Silero Text Enhancement
+            grammar_text = self.apply_te(sub_text, lan="ru")
+            
+        except IndexError as e:
+            print(f"IndexError в enhance_text, пробуем обработать без первого слова: {e}")
+            # Магия как в твоем примере - убираем первое слово
+            sub_array = sub_text.split(" ")[1:]
+            if len(sub_array) > 0:
+                try:
+                    grammar_text = self.apply_te(" ".join(sub_array), lan="ru")
+                    grammar_text = "[] " + grammar_text
+                except Exception as e2:
+                    print(f"Двойная ошибка в enhance_text: {e2}. Возвращаем исходный текст")
+                    return text
+            else:
+                print("Текст слишком короткий после обработки")
+                return text
+                
         except Exception as e:
-            print(f"Ошибка в enhance_text при обработке текста: '{text}'. Ошибка: {e}")
+            print(f"Другая ошибка в enhance_text: {e}. Возвращаем исходный текст")
             return text
+        
+        # Возвращаем числа обратно в текст
+        try:
+            if numbers:
+                grammar_text = grammar_text.replace("[]", "{}").format(*numbers)
+        except Exception as e:
+            print(f"Ошибка при возврате чисел: {e}")
+            return text
+            
+        return grammar_text
 
     def correct(self, text: str) -> Tuple[str, Dict[str, str]]:
         if not text or not text.strip():
