@@ -1,8 +1,17 @@
+import os
 import requests
 import time
 import gradio as gr
 
-API_URL = "http://localhost:8000"
+# Загрузка переменных окружения из .env файла
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# Получение URL API из переменных окружения
+API_URL = os.getenv("LOCAL_API_URL", "http://localhost:8081")
 
 
 def correct_text(text):

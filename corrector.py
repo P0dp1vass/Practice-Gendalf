@@ -7,7 +7,8 @@ import torch
 import Levenshtein
 import nltk
 
-nltk.download('punkt', quiet=True)
+nltk.download('punkt', quiet=True, download_dir='/root/nltk_data')
+nltk.download('punkt_tab', quiet=True, download_dir='/root/nltk_data')
 from nltk.tokenize import sent_tokenize
 
 morph = MorphVocab()
@@ -69,7 +70,13 @@ class TextCorrector:
             "маркетплейс"
         }
 
-        self.device = torch.device('cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Используется device: {self.device}")
+        
+        # Перемещаем T5 модель на device
+        self.model = self.model.to(self.device)
+        
+        # Загружаем Silero модель
         (
             self.silero_model,
             self.example_texts,
@@ -81,6 +88,9 @@ class TextCorrector:
             model='silero_te',
             trust_repo=True
         )
+        
+        # Перемещаем Silero модель на device
+        # self.silero_model = self.silero_model.to(self.device)
 
     def clean_word(self, word: str) -> str:
         return re.sub(r'[^\w\s]', '', word).lower()
@@ -190,8 +200,8 @@ class TextCorrector:
                 )
                 with torch.no_grad():
                     outputs = self.model.generate(
-                        input_ids=encoded.input_ids,
-                        attention_mask=encoded.attention_mask,
+                        input_ids=encoded.input_ids.to(self.device),
+                        attention_mask=encoded.attention_mask.to(self.device),
                         max_length=256
                     )
                 if len(outputs) == 0 or outputs[0].size(0) == 0:
@@ -207,10 +217,19 @@ class TextCorrector:
     def enhance_text(self, text: str) -> str:
         if not text or not text.strip():
             return text
+        
+        # Убираем всю пунктуацию и переводим в нижний регистр
+        import re
+        cleaned_text = re.sub(r'[^\w\s]', ' ', text).lower()
+        # Убираем лишние пробелы
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        
         try:
-            return self.apply_te(text, lan='ru')
+            # Применяем Silero Text Enhancement к очищенному тексту
+            enhanced = self.apply_te(cleaned_text, lan="ru")
+            return enhanced
         except Exception as e:
-            print(f"Ошибка в enhance_text при обработке текста: '{text}'. Ошибка: {e}")
+            print(f"Ошибка в enhance_text: {e}. Возвращаем исходный текст")
             return text
 
     def correct(self, text: str) -> Tuple[str, Dict[str, str]]:
