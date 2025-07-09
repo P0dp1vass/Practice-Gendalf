@@ -1,9 +1,18 @@
 # api/main.py
+import os
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 import uuid
 import asyncio
 from corrector import TextCorrector
+
+# Загрузка переменных окружения из .env файла
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 app = FastAPI()
 corrector = TextCorrector()
 tasks = {}

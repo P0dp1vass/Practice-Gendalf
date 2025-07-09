@@ -3,17 +3,16 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Установка зависимостей
-COPY api/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN python -m nltk.downloader punkt
 
-
-
 # Копирование файлов
-COPY api /app/api
-COPY api/client_app.py /app/client_app.py
+COPY . /app
 
+# Expose порт 8081
+EXPOSE 8081
 
 # Запуск API
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"]
 

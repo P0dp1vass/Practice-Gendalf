@@ -5,3 +5,7 @@ transformers
 natasha
 python-Levenshtein
 nltk
+python-dotenv
+gradio
+openai
+requests

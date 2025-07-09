@@ -1,13 +1,26 @@
+import os
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 import uuid
-import os
 import json
 from openai import OpenAI
 
+# Загрузка переменных окружения из .env файла
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 print('OpenAI')
 app = FastAPI()
-client = OpenAI(api_key="")
+
+# Получение API ключа из переменных окружения
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY не найден в переменных окружения")
+
+client = OpenAI(api_key=openai_api_key)
 
 tasks = {}
 
