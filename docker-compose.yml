@@ -12,6 +12,15 @@ services:
     volumes:
       - .:/app
     restart: unless-stopped
+    # использование nvidia gpu и рантайма
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   transcription-corrector-openai:
     build: .
