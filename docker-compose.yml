@@ -40,7 +40,7 @@ services:
   client-app:
     build: .
     ports:
-      - "7860:7860"
+      - "7864:7860"
     environment:
       - LOCAL_API_URL=${LOCAL_API_URL:-http://transcription-corrector:8081}
       - OPENAI_API_URL=${OPENAI_API_URL:-http://transcription-corrector-openai:8081}
@@ -52,4 +52,4 @@ services:
     restart: unless-stopped
     depends_on:
       - transcription-corrector
-      - transcription-corrector-openai 
+      - transcription-corrector-openai
