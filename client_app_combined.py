@@ -14,12 +14,14 @@ except ImportError:
 LOCAL_API_URL = os.getenv("LOCAL_API_URL", "http://localhost:8081")
 OPENAI_API_URL = os.getenv("OPENAI_API_URL", "http://localhost:8082")
 
+timeout = 120
+
 def correct_text_local(text):
     response = requests.post(f"{LOCAL_API_URL}/submit", json={"text": text})
     task_id = response.json().get("task_id")
     if not task_id:
         return "Ошибка при отправке задачи (локальная модель)"
-    for _ in range(30):
+    for _ in range(timeout):
         response = requests.get(f"{LOCAL_API_URL}/result/{task_id}")
         status = response.json().get("status")
         if status == "done":
@@ -39,7 +41,7 @@ def correct_text_openai(text):
     task_id = response.json().get("task_id")
     if not task_id:
         return "Ошибка при отправке задачи (OpenAI)"
-    for _ in range(30):
+    for _ in range(timeout):
         response = requests.get(f"{OPENAI_API_URL}/result/{task_id}")
         status = response.json().get("status")
         if status == "done":
