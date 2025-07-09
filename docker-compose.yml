@@ -11,6 +11,12 @@ services:
       - .env
     volumes:
       - .:/app
+      # Кэш для Hugging Face моделей (T5 модель)
+      - huggingface_cache:/root/.cache/huggingface
+      # Кэш для PyTorch Hub моделей (Silero модель)
+      - torch_hub_cache:/root/.cache/torch
+      # Кэш для NLTK данных
+      - nltk_data:/root/nltk_data
     restart: unless-stopped
     # использование nvidia gpu и рантайма
     runtime: nvidia
@@ -34,6 +40,12 @@ services:
       - .env
     volumes:
       - .:/app
+      # Кэш для Hugging Face моделей (T5 модель)
+      - huggingface_cache:/root/.cache/huggingface
+      # Кэш для PyTorch Hub моделей (Silero модель)
+      - torch_hub_cache:/root/.cache/torch
+      # Кэш для NLTK данных
+      - nltk_data:/root/nltk_data
     command: ["uvicorn", "mainOpenAI:app", "--host", "0.0.0.0", "--port", "8081"]
     restart: unless-stopped
 
@@ -48,8 +60,22 @@ services:
       - .env
     volumes:
       - .:/app
+      # Кэш для Hugging Face моделей (T5 модель)
+      - huggingface_cache:/root/.cache/huggingface
+      # Кэш для PyTorch Hub моделей (Silero модель)
+      - torch_hub_cache:/root/.cache/torch
+      # Кэш для NLTK данных
+      - nltk_data:/root/nltk_data
     command: ["python", "client_app_combined.py"]
     restart: unless-stopped
     depends_on:
       - transcription-corrector
       - transcription-corrector-openai
+
+volumes:
+  # Named volume для кэширования Hugging Face моделей
+  huggingface_cache:
+  # Named volume для кэширования PyTorch Hub моделей (Silero)
+  torch_hub_cache:
+  # Named volume для кэширования NLTK данных
+  nltk_data:
