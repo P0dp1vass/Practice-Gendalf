@@ -90,7 +90,7 @@ class TextCorrector:
         )
         
         # Перемещаем Silero модель на device
-        self.silero_model = self.silero_model.to(self.device)
+        # self.silero_model = self.silero_model.to(self.device)
 
     def clean_word(self, word: str) -> str:
         return re.sub(r'[^\w\s]', '', word).lower()
