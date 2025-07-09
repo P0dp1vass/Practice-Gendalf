@@ -6,9 +6,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # Скачиваем NLTK данные в кэш директорию
-RUN python -m nltk.downloader punkt
+RUN python -m nltk.downloader punkt --download-dir /root/nltk_data
 RUN sleep 2
-RUN python -m nltk.downloader punkt_tab
+RUN python -m nltk.downloader punkt_tab --download-dir /root/nltk_data
 RUN sleep 2
 
 # Копирование файлов
